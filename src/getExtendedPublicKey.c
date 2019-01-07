@@ -12,7 +12,7 @@ get_ext_pub_key_data_t data;
 
 void io_exchange_address();
 
-void derive_bip32_node_private_key()
+void deriveBip32NodePrivateKey()
 {
 	STATIC_ASSERT(CX_APILEVEL >= 5, unsupported_api_level);
 	os_memset(data.chainCode, 0, sizeof(data.chainCode));
@@ -66,6 +66,34 @@ void initializePath(uint8_t *dataBuffer)
 	VALIDATE_PARAM(data.bip32Path[2] >= HARDENED_BIP32);
 }
 
+static void os_swap_bigint32(unsigned char *bigint)
+{
+	for (int i = 0; i<16; i++) {
+		unsigned char x;
+		x = bigint[i];
+		bigint[i] = bigint[31-i];
+		bigint[31-i] = x;
+	}
+}
+
+// this is a workaround for SDK <= 1.5.4?, we use this instead of the cx_ecfp_generate_pair
+// as these functions do not work with extended private key
+void derivePublicKey()
+{
+	data.publicKey.W_len = 1 + 32 * 2;
+	data.publicKey.W[0] = 0x04;
+	os_memmove(data.publicKey.W + 1, C_cx_Ed25519_Bx, 32);
+	os_memmove(data.publicKey.W + 1 + 32, C_cx_Ed25519_By, 32);
+	os_swap_bigint32(data.privateKey.d);
+
+	cx_ecfp_scalar_mult(
+	        CX_CURVE_Ed25519,
+	        data.publicKey.W,
+	        data.publicKey.W_len,
+	        data.privateKey.d, 32);
+	os_swap_bigint32(data.privateKey.d);
+}
+
 void handleGetExtendedPublicKey(
         uint8_t p1,
         uint8_t p2,
@@ -76,12 +104,8 @@ void handleGetExtendedPublicKey(
 
 	initializePath(dataBuffer);
 
-	derive_bip32_node_private_key();
-
-	cx_ecfp_generate_pair(
-	        CX_CURVE_Ed25519,
-	        &data.publicKey,
-	        &data.privateKey, 1);
+	deriveBip32NodePrivateKey();
+	derivePublicKey();
 
 	os_memset(&data.privateKey, 0, sizeof(data.privateKey));
 	os_memset(data.privateKeyData, 0, sizeof(data.privateKeyData));
