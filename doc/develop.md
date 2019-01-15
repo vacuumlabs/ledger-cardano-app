@@ -42,7 +42,7 @@ Note that you should *not* use `unsigned char` for this reason.
 ### Lengths:
 
 Speaking of buffers and strings, strings always carry an implicit length of `strlen(str)` (which conviniently returns `size_t`).
-If you ever need to *output* a string, it should be taken into that `strlen(str)` is ONE less than the space this takes in memory.
+If you ever need to *output* a string, it should be taken into account that `strlen(str)` is ONE less than the space string takes in memory.
 
 On the other hand, byte buffers do not have associated length in C. 
 As such, any byte buffer *must* be associated with an explicit length (of type `size_t`) which confirms its length.
